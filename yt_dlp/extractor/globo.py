@@ -5,9 +5,6 @@ import random
 import re
 
 from .common import InfoExtractor
-from ..compat import (
-    compat_str,
-)
 from ..networking import HEADRequest
 from ..utils import (
     ExtractorError,
@@ -88,7 +85,7 @@ class GloboIE(InfoExtractor):
             video_id, 'Getting cookies')
 
         video = self._download_json(
-            'http://api.globovideos.com/videos/%s/playlist' % video_id,
+            f'http://api.globovideos.com/videos/{video_id}/playlist',
             video_id)['videos'][0]
         if not self.get_param('allow_unplayable_formats') and video.get('encrypted') is True:
             self.report_drm(video_id)
@@ -99,12 +96,12 @@ class GloboIE(InfoExtractor):
         security = self._download_json(
             'https://playback.video.globo.com/v4/video-session', video_id, 'Downloading security hash for %s' % video_id,
             headers={'content-type': 'application/json'}, data=json.dumps({
-                "player_type": "desktop",
-                "video_id": video_id,
-                "quality": "max",
-                "content_protection": "widevine",
-                "vsid": "581b986b-4c40-71f0-5a58-803e579d5fa2",
-                "tz": "-3.0:00"
+                'player_type': 'desktop',
+                'video_id': video_id,
+                'quality': 'max',
+                'content_protection': 'widevine',
+                'vsid': '581b986b-4c40-71f0-5a58-803e579d5fa2',
+                'tz': '-3.0:00',
             }).encode())
         # print('#############')
         # print(video_id)
@@ -119,7 +116,7 @@ class GloboIE(InfoExtractor):
             message = security.get('message')
             if message:
                 raise ExtractorError(
-                    '%s returned error: %s' % (self.IE_NAME, message), expected=True)
+                    f'{self.IE_NAME} returned error: {message}', expected=True)
 
         # hash_code = security_hash[:2]
         # padding = '%010d' % random.randint(1, 10000000000)
@@ -250,7 +247,7 @@ class GloboArticleIE(InfoExtractor):
 
     @classmethod
     def suitable(cls, url):
-        return False if GloboIE.suitable(url) else super(GloboArticleIE, cls).suitable(url)
+        return False if GloboIE.suitable(url) else super().suitable(url)
 
     def _real_extract(self, url):
         display_id = self._match_id(url)
@@ -259,7 +256,7 @@ class GloboArticleIE(InfoExtractor):
         for video_regex in self._VIDEOID_REGEXES:
             video_ids.extend(re.findall(video_regex, webpage))
         entries = [
-            self.url_result('globo:%s' % video_id, GloboIE.ie_key())
+            self.url_result(f'globo:{video_id}', GloboIE.ie_key())
             for video_id in orderedSet(video_ids)]
         title = self._og_search_title(webpage).strip()
         description = self._html_search_meta('description', webpage)
