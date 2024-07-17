@@ -97,7 +97,7 @@ class GloboIE(InfoExtractor):
 
         formats = []
         security = self._download_json(
-            'https://playback.video.globo.com/v2/video-session', video_id, 'Downloading security hash for %s' % video_id,
+            'https://playback.video.globo.com/v4/video-session', video_id, 'Downloading security hash for %s' % video_id,
             headers={'content-type': 'application/json'}, data=json.dumps({
                 "player_type": "desktop",
                 "video_id": video_id,
@@ -106,8 +106,13 @@ class GloboIE(InfoExtractor):
                 "vsid": "581b986b-4c40-71f0-5a58-803e579d5fa2",
                 "tz": "-3.0:00"
             }).encode())
-
-        self._request_webpage(HEADRequest(security['sources'][0]['url_template']), video_id, 'Getting locksession cookie')
+        # print('#############')
+        # print(video_id)
+        # print('#############')
+        # print(security['sources'][0])
+        # print('#############')
+        # self._request_webpage(HEADRequest(security['sources'][0]['url_template']), video_id, 'Getting locksession cookie')
+        self._request_webpage(HEADRequest(security['sources'][0]['url']), video_id, 'Getting locksession cookie')
 
         security_hash = security['sources'][0]['token']
         if not security_hash:
@@ -116,29 +121,44 @@ class GloboIE(InfoExtractor):
                 raise ExtractorError(
                     '%s returned error: %s' % (self.IE_NAME, message), expected=True)
 
-        hash_code = security_hash[:2]
-        padding = '%010d' % random.randint(1, 10000000000)
-        if hash_code in ('04', '14'):
-            received_time = security_hash[3:13]
-            received_md5 = security_hash[24:]
-            hash_prefix = security_hash[:23]
-        elif hash_code in ('02', '12', '03', '13'):
-            received_time = security_hash[2:12]
-            received_md5 = security_hash[22:]
-            padding += '1'
-            hash_prefix = '05' + security_hash[:22]
+        # hash_code = security_hash[:2]
+        # padding = '%010d' % random.randint(1, 10000000000)
+        # received_time = '0'
+        # received_md5 = '0'
+        # hash_prefix = '0'
+        # if hash_code in ('04', '14'):
+        #     received_time = security_hash[3:13]
+        #     received_md5 = security_hash[24:]
+        #     hash_prefix = security_hash[:23]
+        # elif hash_code in ('02', '12', '03', '13'):
+        #     received_time = security_hash[2:12]
+        #     received_md5 = security_hash[22:]
+        #     padding += '1'
+        #     hash_prefix = '05' + security_hash[:22]
 
-        padded_sign_time = compat_str(int(received_time) + 86400) + padding
-        md5_data = (received_md5 + padded_sign_time + '0xAC10FD').encode()
-        signed_md5 = base64.urlsafe_b64encode(hashlib.md5(md5_data).digest()).decode().strip('=')
-        signed_hash = hash_prefix + padded_sign_time + signed_md5
-        source = security['sources'][0]['url_parts']
-        resource_url = source['scheme'] + '://' + source['domain'] + source['path']
-        signed_url = '%s?h=%s&k=html5&a=%s' % (resource_url, signed_hash, 'F' if video.get('subscriber_only') else 'A')
+        # padded_sign_time = compat_str(int(received_time) + 86400) + padding
+        # md5_data = (received_md5 + padded_sign_time + '0xAC10FD').encode()
+        # signed_md5 = base64.urlsafe_b64encode(hashlib.md5(md5_data).digest()).decode().strip('=')
+        # signed_hash = hash_prefix + padded_sign_time + signed_md5
+        source = security['sources'][0]['url']
+        resource_url = source#['scheme'] + '://' + source['domain'] + source['path']
+        # signed_url = '%s?h=%s&k=html5&a=%s' % (resource_url, signed_hash, 'F' if video.get('subscriber_only') else 'A')
+        signed_url = '%s?k=html5&a=%s' % (resource_url, 'F' if video.get('subscriber_only') else 'A')
 
+        # print('---------------------------')
+        # print(signed_url)
+        # print(video_id)
+        # print(formats)
+        # print('---------------------------')
         fmts, subtitles = self._extract_m3u8_formats_and_subtitles(
             signed_url, video_id, 'mp4', entry_protocol='m3u8_native', m3u8_id='hls', fatal=False)
         formats.extend(fmts)
+
+        # print('=================')
+        # print(subtitles)
+        # print(fmts)
+        # print(formats)
+        # print('=================')
 
         for resource in video['resources']:
             if resource.get('type') == 'subtitle':
